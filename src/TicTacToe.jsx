@@ -1,56 +1,112 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { db } from "./firebase";
+import { collection, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { nanoid } from "nanoid";
 
-const Square = ({ value, onClick }) => {
-  return (
-    <button
-      className="w-20 h-20 border-2 border-gray-500 text-3xl flex items-center justify-center"
-      onClick={onClick}
-    >
-      {value}
-    </button>
-  );
-};
+const Square = ({ value, onClick }) => (
+  <button className="w-24 h-24 bg-white border-4 border-gray-400 text-4xl font-bold flex items-center justify-center shadow-lg rounded-md hover:bg-gray-200 transition-all" onClick={onClick}>
+    {value}
+  </button>
+);
 
-const Board = ({ squares, onClick }) => {
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {squares.map((square, i) => (
-        <Square key={i} value={square} onClick={() => onClick(i)} />
-      ))}
-    </div>
-  );
-};
+const Board = ({ squares, onClick }) => (
+  <div className="grid grid-cols-3 gap-3">
+    {squares.map((square, i) => (
+      <Square key={i} value={square} onClick={() => onClick(i)} />
+    ))}
+  </div>
+);
 
 const TicTacToe = () => {
+  const [roomId, setRoomId] = useState("");
+  const [inputRoomId, setInputRoomId] = useState("");
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [xIsNext, setXIsNext] = useState(true);
 
-  const handleClick = (i) => {
-    const newSquares = squares.slice();
-    if (calculateWinner(newSquares) || newSquares[i]) return;
-    newSquares[i] = xIsNext ? 'X' : 'O';
-    setSquares(newSquares);
-    setXIsNext(!xIsNext);
+  useEffect(() => {
+    if (roomId) {
+      const unsubscribe = onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSquares(data.squares);
+          setXIsNext(data.xIsNext);
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [roomId]);
+
+  const handleClick = async (i) => {
+    if (!roomId || squares[i] || calculateWinner(squares)) return;
+    const newSquares = [...squares];
+    newSquares[i] = xIsNext ? "X" : "O";
+
+    await setDoc(doc(db, "rooms", roomId), {
+      squares: newSquares,
+      xIsNext: !xIsNext,
+    }, { merge: true });
+  };
+
+  const createRoom = async () => {
+    const id = nanoid(4).toUpperCase(); // Generates a 4-letter room ID
+    await setDoc(doc(db, "rooms", id), {
+      squares: Array(9).fill(null),
+      xIsNext: true,
+    });
+    setRoomId(id);
+  };
+
+  const joinRoom = async () => {
+    if (!inputRoomId) return;
+    const docSnap = await getDoc(doc(db, "rooms", inputRoomId.toUpperCase()));
+    if (docSnap.exists()) {
+      setRoomId(inputRoomId.toUpperCase());
+    } else {
+      alert("Room not found!");
+    }
+  };
+
+  const leaveRoom = () => {
+    setRoomId("");
+    setSquares(Array(9).fill(null));
+    setXIsNext(true);
   };
 
   const winner = calculateWinner(squares);
-  let status;
-  if (winner) {
-    status = `Winner: ${winner}`;
-  } else {
-    status = `Next player: ${xIsNext ? 'X' : 'O'}`;
-  }
+  const status = winner ? `Winner: ${winner}` : `Next player: ${xIsNext ? "X" : "O"}`;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <div className="mb-4 text-2xl">{status}</div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-6">
+      <h1 className="text-4xl font-bold mb-4 text-gray-700">Tic-Tac-Toe</h1>
+      <div className="mb-4 text-2xl font-semibold text-gray-800">{status}</div>
       <Board squares={squares} onClick={handleClick} />
-      <button
-        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-        onClick={() => setSquares(Array(9).fill(null))}
-      >
-        Restart
-      </button>
+      {!roomId ? (
+        <div className="mt-6 space-y-4 flex flex-col items-center">
+          <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 transition-all" onClick={createRoom}>
+            Create Room
+          </button>
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              className="px-4 py-2 border rounded-lg text-center uppercase"
+              placeholder="Enter Room ID"
+              maxLength="4"
+              value={inputRoomId}
+              onChange={(e) => setInputRoomId(e.target.value.toUpperCase())}
+            />
+            <button className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md hover:bg-green-700 transition-all" onClick={joinRoom}>
+              Join Room
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 text-center">
+          <p className="text-xl font-semibold">Room ID: <span className="font-bold text-blue-700">{roomId}</span></p>
+          <button className="mt-3 px-6 py-2 bg-red-600 text-white rounded-lg font-bold shadow-md hover:bg-red-700 transition-all" onClick={leaveRoom}>
+            Leave Room
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -66,8 +122,7 @@ const calculateWinner = (squares) => {
     [0, 4, 8],
     [2, 4, 6],
   ];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
+  for (let [a, b, c] of lines) {
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
       return squares[a];
     }
