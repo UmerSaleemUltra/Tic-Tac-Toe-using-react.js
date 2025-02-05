@@ -160,10 +160,10 @@ const TicTacToe = () => {
           <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md" onClick={createRoom}>
             Create Room
           </button>
-          <div className="flex space-x-2">
-            <input
+          <div className="mt-6 space-y-4 flex flex-col items-center">
+          <input
               type="text"
-              className="px-4 py-2 border rounded-lg text-center uppercase"
+              className="px-4 py-2 border rounded-lg text-center"
               placeholder="Enter Room ID"
               maxLength="4"
               value={inputRoomId}
