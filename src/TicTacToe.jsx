@@ -1,16 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { db } from "./firebase"
-import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore"
-import { nanoid } from "nanoid"
+import { useState, useEffect } from "react";
+import { db } from "./firebase";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { nanoid } from "nanoid";
 
 const speak = (message) => {
-  const utterance = new SpeechSynthesisUtterance(message)
-  utterance.pitch = 1
-  utterance.rate = 1
-  window.speechSynthesis.speak(utterance)
-}
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.pitch = 1;
+  utterance.rate = 1;
+  window.speechSynthesis.speak(utterance);
+};
 
 const Square = ({ value, onClick, disabled }) => (
   <button
@@ -20,7 +18,7 @@ const Square = ({ value, onClick, disabled }) => (
   >
     <span className="absolute inset-0 flex items-center justify-center">{value}</span>
   </button>
-)
+);
 
 const Board = ({ squares, onClick, disabledSquares }) => (
   <div className="grid grid-cols-3 gap-2 w-full max-w-xs sm:max-w-sm md:max-w-md">
@@ -28,7 +26,7 @@ const Board = ({ squares, onClick, disabledSquares }) => (
       <Square key={i} value={square} onClick={() => onClick(i)} disabled={disabledSquares[i]} />
     ))}
   </div>
-)
+);
 
 const calculateWinner = (squares) => {
   const lines = [
@@ -40,125 +38,132 @@ const calculateWinner = (squares) => {
     [2, 5, 8], // Columns
     [0, 4, 8],
     [2, 4, 6], // Diagonals
-  ]
+  ];
 
   for (const [a, b, c] of lines) {
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a] // Return 'X' or 'O' if there's a winner
+      return squares[a]; // Return 'X' or 'O' if there's a winner
     }
   }
-  return null
-}
+  return null;
+};
 
 const TicTacToe = () => {
-  const [roomId, setRoomId] = useState("")
-  const [inputRoomId, setInputRoomId] = useState("")
-  const [squares, setSquares] = useState(Array(9).fill(null))
-  const [xIsNext, setXIsNext] = useState(true)
-  const [disabledSquares, setDisabledSquares] = useState(Array(9).fill(false))
-  const [gameOver, setGameOver] = useState(false)
-  const [winner, setWinner] = useState(null)
-  const [tie, setTie] = useState(false)
-  const [player, setPlayer] = useState("")
-  const [playerName, setPlayerName] = useState("")
-  const [opponentName, setOpponentName] = useState("")
+  const [roomId, setRoomId] = useState("");
+  const [inputRoomId, setInputRoomId] = useState("");
+  const [squares, setSquares] = useState(Array(9).fill(null));
+  const [xIsNext, setXIsNext] = useState(true);
+  const [disabledSquares, setDisabledSquares] = useState(Array(9).fill(false));
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [tie, setTie] = useState(false);
+  const [player, setPlayer] = useState("");
+  const [playerName, setPlayerName] = useState("");
+  const [opponentName, setOpponentName] = useState("");
 
   useEffect(() => {
     if (roomId) {
       const unsubscribe = onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
         if (docSnap.exists()) {
-          const data = docSnap.data()
-          setSquares(data.squares)
-          setXIsNext(data.xIsNext)
-          setWinner(data.winner)
-          setTie(data.tie)
-          setGameOver(Boolean(data.winner || data.tie))
-          setOpponentName(data[player === "X" ? "O_name" : "X_name"] || "Opponent")
+          const data = docSnap.data();
+          setSquares(data.squares);
+          setXIsNext(data.xIsNext);
+          setWinner(data.winner);
+          setTie(data.tie);
+          setGameOver(Boolean(data.winner || data.tie));
+          setOpponentName(data[player === "X" ? "O_name" : "X_name"] || "Opponent");
 
           if (data.winner) {
-            speak(`${data.winner} wins the game!`)
+            // Use the winnerName from Firestore
+            speak(`${data.winnerName} wins the game!`);
           } else if (data.tie) {
-            speak("Game Tied! No one wins.")
+            speak("Game Tied! No one wins.");
           }
         }
-      })
-      return () => unsubscribe()
+      });
+      return () => unsubscribe();
     }
-  }, [roomId, player])
+  }, [roomId, player]);
 
   const handleClick = async (i) => {
-    if (!roomId || squares[i] || gameOver || (xIsNext && player === "O") || (!xIsNext && player === "X")) return
+    // Prevent moves if roomId is not set, square is already taken, game is over, or it's not the player's turn.
+    if (!roomId || squares[i] || gameOver || (xIsNext && player === "O") || (!xIsNext && player === "X")) return;
 
-    const newSquares = [...squares]
-    newSquares[i] = xIsNext ? "X" : "O"
+    const newSquares = [...squares];
+    newSquares[i] = xIsNext ? "X" : "O";
 
-    const winner = calculateWinner(newSquares)
-    const isTie = !winner && newSquares.every((square) => square !== null)
+    const currentWinner = calculateWinner(newSquares);
+    const isTie = !currentWinner && newSquares.every((square) => square !== null);
 
-    if (winner) {
-      setWinner(winner)
-      setGameOver(true)
-      speak(`${winner} wins the game!`)
+    let winnerName = null;
+    if (currentWinner) {
+      // Assign the winner's name based on which marker won.
+      winnerName = currentWinner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName);
+      setWinner(currentWinner);
+      setGameOver(true);
+      speak(`${winnerName} wins the game!`);
     } else if (isTie) {
-      setTie(true)
-      setGameOver(true)
-      speak("Game Tied! No one wins.")
+      setTie(true);
+      setGameOver(true);
+      speak("Game Tied! No one wins.");
     }
 
     setDisabledSquares((prev) => {
-      const updated = [...prev]
-      updated[i] = true
-      return updated
-    })
+      const updated = [...prev];
+      updated[i] = true;
+      return updated;
+    });
 
     await setDoc(
       doc(db, "rooms", roomId),
       {
         squares: newSquares,
         xIsNext: !xIsNext,
-        winner: winner || null,
+        winner: currentWinner || null,
+        winnerName: winnerName || null,
         tie: isTie,
       },
-      { merge: true },
-    )
-  }
+      { merge: true }
+    );
+  };
 
   const createRoom = async () => {
-    if (!playerName) return alert("Please enter your name first")
-    const id = nanoid(4).toUpperCase()
+    if (!playerName) return alert("Please enter your name first");
+    const id = nanoid(4).toUpperCase();
     await setDoc(doc(db, "rooms", id), {
       squares: Array(9).fill(null),
       xIsNext: true,
       X_name: playerName,
       winner: null,
       tie: false,
-    })
-    setRoomId(id)
-    setPlayer("X")
-    speak("Room created. Share your room ID to play.")
-  }
+    });
+    setRoomId(id);
+    setPlayer("X");
+    speak("Room created. Share your room ID to play.");
+  };
 
   const joinRoom = async () => {
-    if (!inputRoomId || !playerName) return alert("Enter room ID and your name")
-    const docSnap = await getDoc(doc(db, "rooms", inputRoomId.toUpperCase()))
+    if (!inputRoomId || !playerName) return alert("Enter room ID and your name");
+    const roomRef = doc(db, "rooms", inputRoomId.toUpperCase());
+    const docSnap = await getDoc(roomRef);
     if (docSnap.exists()) {
-      setRoomId(inputRoomId.toUpperCase())
-      setPlayer("O")
-      await setDoc(doc(db, "rooms", inputRoomId.toUpperCase()), { O_name: playerName }, { merge: true })
-      speak("You have joined the room.")
+      setRoomId(inputRoomId.toUpperCase());
+      setPlayer("O");
+      await setDoc(roomRef, { O_name: playerName }, { merge: true });
+      speak("You have joined the room.");
     } else {
-      alert("Room not found!")
-      speak("Room not found. Try again.")
+      alert("Room not found!");
+      speak("Room not found. Try again.");
     }
-  }
+  };
 
   const status = winner
-    ? `Winner: ${winner}`
+    ? `Winner: ${winner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName)}`
     : tie
       ? "Game Tied!"
       : gameOver
         ? "Game Over"
-        : `Next player: ${xIsNext ? "X" : "O"}`
+        : `Next player: ${xIsNext ? "X" : "O"}`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-4 sm:p-6">
@@ -206,8 +211,7 @@ const TicTacToe = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default TicTacToe
-
+export default TicTacToe;
