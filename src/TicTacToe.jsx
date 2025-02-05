@@ -51,6 +51,7 @@ const TicTacToe = () => {
   const [disabledSquares, setDisabledSquares] = useState(Array(9).fill(false));
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [tie, setTie] = useState(false);
   const [player, setPlayer] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [opponentName, setOpponentName] = useState("");
@@ -63,11 +64,14 @@ const TicTacToe = () => {
           setSquares(data.squares);
           setXIsNext(data.xIsNext);
           setWinner(data.winner);
-          setGameOver(Boolean(data.winner));
+          setTie(data.tie);
+          setGameOver(Boolean(data.winner || data.tie));
           setOpponentName(data[player === "X" ? "O_name" : "X_name"] || "Opponent");
 
           if (data.winner) {
             speak(`${data.winner} wins the game!`);
+          } else if (data.tie) {
+            speak("Game Tied! No one wins.");
           }
         }
       });
@@ -82,10 +86,16 @@ const TicTacToe = () => {
     newSquares[i] = xIsNext ? "X" : "O";
 
     const winner = calculateWinner(newSquares);
+    const isTie = !winner && newSquares.every((square) => square !== null);
+
     if (winner) {
       setWinner(winner);
       setGameOver(true);
       speak(`${winner} wins the game!`);
+    } else if (isTie) {
+      setTie(true);
+      setGameOver(true);
+      speak("Game Tied! No one wins.");
     }
 
     setDisabledSquares((prev) => {
@@ -98,6 +108,7 @@ const TicTacToe = () => {
       squares: newSquares,
       xIsNext: !xIsNext,
       winner: winner || null,
+      tie: isTie,
     }, { merge: true });
   };
 
@@ -109,6 +120,7 @@ const TicTacToe = () => {
       xIsNext: true,
       X_name: playerName,
       winner: null,
+      tie: false,
     });
     setRoomId(id);
     setPlayer("X");
@@ -129,7 +141,7 @@ const TicTacToe = () => {
     }
   };
 
-  const status = winner ? `Winner: ${winner}` : gameOver ? "Game Over" : `Next player: ${xIsNext ? "X" : "O"}`;
+  const status = winner ? `Winner: ${winner}` : tie ? "Game Tied!" : gameOver ? "Game Over" : `Next player: ${xIsNext ? "X" : "O"}`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-6">
