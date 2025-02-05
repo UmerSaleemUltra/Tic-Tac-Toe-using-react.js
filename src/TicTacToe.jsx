@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { nanoid } from "nanoid";
+import { FaSmileBeam, FaTimesCircle, FaCircleNotch, FaUser } from 'react-icons/fa'; // Example icon imports
+
 
 const speak = (message) => {
   const utterance = new SpeechSynthesisUtterance(message);
@@ -74,7 +76,6 @@ const TicTacToe = () => {
           setOpponentName(data[player === "X" ? "O_name" : "X_name"] || "Opponent");
 
           if (data.winner) {
-            // Use the winnerName from Firestore
             speak(`${data.winnerName} wins the game!`);
           } else if (data.tie) {
             speak("Game Tied! No one wins.");
@@ -97,7 +98,6 @@ const TicTacToe = () => {
 
     let winnerName = null;
     if (currentWinner) {
-      // Assign the winner's name based on which marker won.
       winnerName = currentWinner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName);
       setWinner(currentWinner);
       setGameOver(true);
@@ -177,65 +177,88 @@ const TicTacToe = () => {
   };
 
   const status = winner
-    ? `Winner: ${winner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName)}`
-    : tie
-      ? "Game Tied!"
-      : gameOver
-        ? "Game Over"
-        : `Next player: ${xIsNext ? "X" : "O"}`;
+  ? `Winner: ${winner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName)}`
+  : tie
+    ? "Game Tied!"
+    : gameOver
+      ? "Game Over"
+      : `Next player: ${xIsNext ? "X" : "O"}`;
+
+// Determine the appropriate icon based on the status
+const statusIcon = winner
+  ? <FaTimesCircle className="text-green-500" />  // Icon for winner
+  : tie
+    ? <FaSmileBeam className="text-yellow-500" />  // Icon for tie
+    : gameOver
+      ? <FaCircleNotch className="text-gray-500" />  // Icon for game over
+      : <FaUser className="text-blue-500" />;  // Icon for next player
+
+
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-4 sm:p-6">
-      <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-gray-700">Tic-Tac-Toe</h1>
-      <div className="mb-4 text-xl sm:text-2xl font-semibold text-gray-800">{status}</div>
-      <Board squares={squares} onClick={handleClick} disabledSquares={disabledSquares} />
-      {!roomId ? (
-        <div className="mt-6 space-y-4 flex flex-col items-center w-full max-w-xs sm:max-w-sm">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-blue-200 to-blue-300 p-6 sm:p-8">
+    <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 text-gray-800 drop-shadow-lg">
+      Tic-Tac-Toe
+    </h1>
+  
+    <div className="status-container flex items-center justify-center space-x-3 mb-6">
+      {statusIcon}
+      <span className="text-lg sm:text-xl font-medium text-gray-700">{status}</span>
+    </div>
+  
+    <Board squares={squares} onClick={handleClick} disabledSquares={disabledSquares} />
+  
+    {!roomId ? (
+      <div className="mt-8 space-y-6 flex flex-col items-center w-full max-w-md">
+        <input
+          type="text"
+          className="px-5 py-3 border-2 border-blue-500 rounded-xl text-center w-full placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          placeholder="Enter Your Name"
+          value={playerName}
+          onChange={(e) => setPlayerName(e.target.value)}
+        />
+        <button
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition duration-300 w-full"
+          onClick={createRoom}
+        >
+          Create Room
+        </button>
+  
+        <div className="mt-6 space-y-6 flex flex-col items-center w-full">
           <input
             type="text"
-            className="px-4 py-2 border rounded-lg text-center w-full"
-            placeholder="Enter Your Name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
+            className="px-5 py-3 border-2 border-green-500 rounded-xl text-center w-full placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+            placeholder="Enter Room ID"
+            maxLength="4"
+            value={inputRoomId}
+            onChange={(e) => setInputRoomId(e.target.value.toUpperCase())}
           />
           <button
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md w-full"
-            onClick={createRoom}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:bg-green-700 transition duration-300 w-full"
+            onClick={joinRoom}
           >
-            Create Room
-          </button>
-          <div className="mt-6 space-y-4 flex flex-col items-center w-full">
-            <input
-              type="text"
-              className="px-4 py-2 border rounded-lg text-center w-full"
-              placeholder="Enter Room ID"
-              maxLength="4"
-              value={inputRoomId}
-              onChange={(e) => setInputRoomId(e.target.value.toUpperCase())}
-            />
-            <button
-              className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md w-full"
-              onClick={joinRoom}
-            >
-              Join Room
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-6 text-center">
-          <p className="text-lg sm:text-xl font-semibold">
-            Room ID: <span className="font-bold text-blue-700">{roomId}</span>
-          </p>
-          <p className="text-md sm:text-lg font-semibold">Opponent: {opponentName}</p>
-          <button
-            className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold shadow-md w-full"
-            onClick={restartGame}
-          >
-            Restart Game
+            Join Room
           </button>
         </div>
-      )}
-    </div>
+      </div>
+    ) : (
+      <div className="mt-8 text-center space-y-4">
+        <p className="text-lg sm:text-xl font-semibold">
+          Room ID: <span className="font-bold text-blue-700">{roomId}</span>
+        </p>
+        <p className="text-md sm:text-lg font-medium text-gray-600">
+          Opponent: {opponentName}
+        </p>
+        <button
+          className="mt-6 px-6 py-3 bg-orange-600 text-white rounded-xl font-semibold shadow-lg hover:bg-orange-700 transition duration-300 w-full"
+          onClick={restartGame}
+        >
+          Restart Game
+        </button>
+      </div>
+    )}
+  </div>
+  
   );
 };
 
