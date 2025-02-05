@@ -157,6 +157,25 @@ const TicTacToe = () => {
     }
   };
 
+  const restartGame = async () => {
+    const newSquares = Array(9).fill(null);
+    setSquares(newSquares);
+    setDisabledSquares(Array(9).fill(false));
+    setGameOver(false);
+    setWinner(null);
+    setTie(false);
+
+    await setDoc(doc(db, "rooms", roomId), {
+      squares: newSquares,
+      xIsNext: true,
+      winner: null,
+      tie: false,
+      winnerName: null,
+    }, { merge: true });
+
+    speak("Game restarted!");
+  };
+
   const status = winner
     ? `Winner: ${winner === "X" ? (player === "X" ? playerName : opponentName) : (player === "O" ? playerName : opponentName)}`
     : tie
@@ -208,6 +227,12 @@ const TicTacToe = () => {
             Room ID: <span className="font-bold text-blue-700">{roomId}</span>
           </p>
           <p className="text-md sm:text-lg font-semibold">Opponent: {opponentName}</p>
+          <button
+            className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold shadow-md w-full"
+            onClick={restartGame}
+          >
+            Restart Game
+          </button>
         </div>
       )}
     </div>
