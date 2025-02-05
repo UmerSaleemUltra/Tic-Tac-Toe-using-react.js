@@ -11,7 +11,7 @@ const speak = (message) => {
 };
 
 const Square = ({ value, onClick, disabled }) => (
-  <button 
+  <button
     className="w-24 h-24 bg-white border-4 border-gray-400 text-4xl font-bold flex items-center justify-center shadow-lg rounded-md hover:bg-gray-200 transition-all"
     onClick={onClick}
     disabled={disabled}
@@ -23,15 +23,25 @@ const Square = ({ value, onClick, disabled }) => (
 const Board = ({ squares, onClick, disabledSquares }) => (
   <div className="grid grid-cols-3 gap-3">
     {squares.map((square, i) => (
-      <Square 
-        key={i} 
-        value={square} 
-        onClick={() => onClick(i)} 
-        disabled={disabledSquares[i]} 
-      />
+      <Square key={i} value={square} onClick={() => onClick(i)} disabled={disabledSquares[i]} />
     ))}
   </div>
 );
+
+const calculateWinner = (squares) => {
+  const lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6], // Diagonals
+  ];
+
+  for (let [a, b, c] of lines) {
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+      return squares[a]; // Return 'X' or 'O' if there's a winner
+    }
+  }
+  return null;
+};
 
 const TicTacToe = () => {
   const [roomId, setRoomId] = useState("");
@@ -52,7 +62,13 @@ const TicTacToe = () => {
           const data = docSnap.data();
           setSquares(data.squares);
           setXIsNext(data.xIsNext);
+          setWinner(data.winner);
+          setGameOver(Boolean(data.winner));
           setOpponentName(data[player === "X" ? "O_name" : "X_name"] || "Opponent");
+
+          if (data.winner) {
+            speak(`${data.winner} wins the game!`);
+          }
         }
       });
       return () => unsubscribe();
@@ -64,6 +80,14 @@ const TicTacToe = () => {
 
     const newSquares = [...squares];
     newSquares[i] = xIsNext ? "X" : "O";
+
+    const winner = calculateWinner(newSquares);
+    if (winner) {
+      setWinner(winner);
+      setGameOver(true);
+      speak(`${winner} wins the game!`);
+    }
+
     setDisabledSquares((prev) => {
       const updated = [...prev];
       updated[i] = true;
@@ -73,9 +97,8 @@ const TicTacToe = () => {
     await setDoc(doc(db, "rooms", roomId), {
       squares: newSquares,
       xIsNext: !xIsNext,
+      winner: winner || null,
     }, { merge: true });
-
-    speak(`${playerName} made a move.`);
   };
 
   const createRoom = async () => {
@@ -85,6 +108,7 @@ const TicTacToe = () => {
       squares: Array(9).fill(null),
       xIsNext: true,
       X_name: playerName,
+      winner: null,
     });
     setRoomId(id);
     setPlayer("X");
@@ -105,7 +129,7 @@ const TicTacToe = () => {
     }
   };
 
-  const status = winner ? `Winner: ${winner}` : `Next player: ${xIsNext ? "X" : "O"}`;
+  const status = winner ? `Winner: ${winner}` : gameOver ? "Game Over" : `Next player: ${xIsNext ? "X" : "O"}`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-6">
