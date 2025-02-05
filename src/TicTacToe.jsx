@@ -43,6 +43,7 @@ const TicTacToe = () => {
   const [disabledSquares, setDisabledSquares] = useState(Array(9).fill(false)); // Track which squares are disabled
   const [gameOver, setGameOver] = useState(false); // Track if the game is over
   const [winner, setWinner] = useState(null); // Store the winner
+  const [player, setPlayer] = useState(""); // Track if the player is X or O
 
   useEffect(() => {
     if (roomId) {
@@ -59,7 +60,7 @@ const TicTacToe = () => {
 
   const handleClick = async (i) => {
     // Prevent clicking if the square is already filled, the game is over, or it's not the player's turn
-    if (!roomId || squares[i] || gameOver) return;
+    if (!roomId || squares[i] || gameOver || (xIsNext && player === "O") || (!xIsNext && player === "X")) return;
 
     const newSquares = [...squares];
     newSquares[i] = xIsNext ? "X" : "O";
@@ -92,6 +93,7 @@ const TicTacToe = () => {
       xIsNext: true,
     });
     setRoomId(id);
+    setPlayer("X"); // Set current player to X
     speak("Room created. Share your room ID to play."); // Announce when room is created
   };
 
@@ -100,6 +102,7 @@ const TicTacToe = () => {
     const docSnap = await getDoc(doc(db, "rooms", inputRoomId.toUpperCase()));
     if (docSnap.exists()) {
       setRoomId(inputRoomId.toUpperCase());
+      setPlayer("O"); // Set current player to O
       speak("You have joined the room."); // Announce when a player joins
     } else {
       alert("Room not found!");
