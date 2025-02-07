@@ -472,37 +472,49 @@ const GameStatus = ({ gameOver, winner, tie, restartGame }) =>
     </motion.div>
   )
 
-const ChatArea = ({ messages, inputMessage, setInputMessage, sendMessage, chatContainerRef, playerName }) => (
-  <div className="flex-1 space-y-4 min-w-[250px]">
-    <div ref={chatContainerRef} className="bg-gray-100 p-4 rounded-lg h-[400px] overflow-y-auto space-y-2">
-      {messages.map((msg, index) => (
-        <div
-          key={index}
-          className={`p-2 rounded-lg ${msg.playerName === playerName ? "bg-blue-200 text-right" : "bg-green-200"}`}
-        >
-          <span className="font-bold">{msg.playerName}: </span>
-          {msg.message}
-        </div>
-      ))}
-    </div>
-    <div className="flex space-x-2">
-      <input
-        type="text"
-        value={inputMessage}
-        onChange={(e) => setInputMessage(e.target.value)}
-        placeholder="Type your message..."
-        className="flex-grow p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-      />
-      <button
-        onClick={sendMessage}
-        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+  const ChatArea = ({ messages, inputMessage, setInputMessage, sendMessage, chatContainerRef, playerName }) => (
+    <div className="flex flex-col flex-1 min-w-[280px] space-y-4 p-4 bg-white shadow-lg rounded-xl">
+      {/* Chat Messages Container */}
+      <div
+        ref={chatContainerRef}
+        className="bg-gray-100 p-4 rounded-lg h-[400px] overflow-y-auto space-y-3 flex flex-col"
       >
-        Send
-      </button>
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`max-w-[80%] p-3 rounded-xl shadow-md text-sm ${
+              msg.playerName === playerName
+                ? "bg-blue-500 text-white self-end"
+                : "bg-gray-300 text-gray-800 self-start"
+            }`}
+          >
+            <span className="font-bold">{msg.playerName}: </span>
+            {msg.message}
+          </div>
+        ))}
+      </div>
+  
+      {/* Chat Input and Send Button */}
+      <div className="flex items-center space-x-3">
+        <input
+          type="text"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-grow p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+        <button
+          onClick={sendMessage}
+          className="bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg shadow-md hover:bg-blue-700 active:scale-95 transition-transform"
+        >
+          Send
+        </button>
+      </div>
     </div>
-  </div>
-)
+  );
+  
+  
 
 export default TicTacToe
 
