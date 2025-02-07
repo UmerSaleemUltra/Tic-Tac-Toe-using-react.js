@@ -129,10 +129,10 @@ const TicTacToe = () => {
   }
 
   const handleClick = async (i) => {
-    if (!roomId || squares[i] || gameOver || (xIsNext && player === "O") || (!xIsNext && player === "X")) return
+    if (!roomId || squares[i] || gameOver || (xIsNext && player !== "X") || (!xIsNext && player !== "O")) return
 
     const newSquares = [...squares]
-    newSquares[i] = xIsNext ? "X" : "O"
+    newSquares[i] = player
 
     const currentWinner = calculateWinner(newSquares)
     const isTie = !currentWinner && newSquares.every((square) => square !== null)
@@ -149,11 +149,8 @@ const TicTacToe = () => {
       speak("It's a tie!")
     }
 
-    setDisabledSquares((prev) => {
-      const updated = [...prev]
-      updated[i] = true
-      return updated
-    })
+    setSquares(newSquares)
+    setXIsNext(!xIsNext)
 
     try {
       await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/update-room", {
@@ -164,8 +161,6 @@ const TicTacToe = () => {
         winnerName: winnerName || null,
         tie: isTie,
       })
-      setSquares(newSquares)
-      setXIsNext(!xIsNext)
     } catch (error) {
       console.error("Error updating room:", error)
       alert("Failed to update room")
@@ -260,7 +255,6 @@ const TicTacToe = () => {
             player={player}
             opponentName={opponentName}
             squares={squares}
-            disabledSquares={disabledSquares}
             gameOver={gameOver}
             handleClick={handleClick}
             winner={winner}
@@ -272,6 +266,7 @@ const TicTacToe = () => {
             setInputMessage={setInputMessage}
             sendMessage={sendMessage}
             chatContainerRef={chatContainerRef}
+            xIsNext={xIsNext}
           />
         )}
       </AnimatePresence>
@@ -310,18 +305,22 @@ const LobbyView = ({
     </button>
     <div className="flex space-x-4">
       <input
-        className="flex-grow p-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-        type="text"
+      className="w-full p-3 border-2 border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+      type="text"
         placeholder="Enter room ID"
         value={inputRoomId}
         onChange={(e) => setInputRoomId(e.target.value)}
       />
+
+      <br />
+<br />
       <button
         className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
         onClick={joinRoom}
       >
         Join
       </button>
+      <br />
     </div>
     <button
       className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
@@ -339,7 +338,6 @@ const GameView = ({
   player,
   opponentName,
   squares,
-  disabledSquares,
   gameOver,
   handleClick,
   winner,
@@ -351,6 +349,7 @@ const GameView = ({
   setInputMessage,
   sendMessage,
   chatContainerRef,
+  xIsNext,
 }) => (
   <motion.div
     key="game"
@@ -370,10 +369,11 @@ const GameView = ({
         />
         <GameBoard
           squares={squares}
-          disabledSquares={disabledSquares}
           gameOver={gameOver}
           handleClick={handleClick}
           isSpectator={isSpectator}
+          player={player}
+          xIsNext={xIsNext}
         />
         <GameStatus gameOver={gameOver} winner={winner} tie={tie} restartGame={restartGame} />
         <button
@@ -423,7 +423,7 @@ const GameInfo = ({ isSpectator, roomId, playerName, player, opponentName }) => 
   </div>
 )
 
-const GameBoard = ({ squares, disabledSquares, gameOver, handleClick, isSpectator }) => (
+const GameBoard = ({ squares, gameOver, handleClick, isSpectator, player, xIsNext }) => (
   <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-[300px] sm:max-w-[350px] mx-auto">
     {squares.map((square, index) => (
       <motion.button
@@ -438,8 +438,8 @@ const GameBoard = ({ squares, disabledSquares, gameOver, handleClick, isSpectato
                 ? "bg-purple-500 text-white"
                 : "bg-gray-200 hover:bg-gray-300"
           }`}
-        onClick={() => !isSpectator && handleClick(index)}
-        disabled={isSpectator || disabledSquares[index] || gameOver}
+        onClick={() => handleClick(index)}
+        disabled={isSpectator || square || gameOver || (xIsNext && player !== "X") || (!xIsNext && player !== "O")}
       >
         {square && (
           <motion.div
