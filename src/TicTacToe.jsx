@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
+import { XIcon, ImageIcon as OIcon } from "lucide-react"
 
 const TicTacToe = () => {
   const [playerName, setPlayerName] = useState("")
@@ -232,7 +233,7 @@ const TicTacToe = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [chatContainerRef])
+  }, [chatContainerRef.current]) //Corrected dependency
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
@@ -242,183 +243,266 @@ const TicTacToe = () => {
 
       <AnimatePresence mode="wait">
         {!roomId ? (
-          <motion.div
-            key="lobby"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-white p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-md"
-          >
-            <input
-              className="w-full p-3 border-2 border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-              type="text"
-              placeholder="Enter your name"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-            />
-            <button
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
-              onClick={createRoom}
-            >
-              Create Room
-            </button>
-            <div className="flex space-x-4">
-              <input
-                className="flex-grow p-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                type="text"
-                placeholder="Enter room ID"
-                value={inputRoomId}
-                onChange={(e) => setInputRoomId(e.target.value)}
-              />
-              <button
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
-                onClick={joinRoom}
-              >
-                Join
-              </button>
-            </div>
-            <button
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
-              onClick={joinAsSpectator}
-            >
-              Spectate
-            </button>
-          </motion.div>
+          <LobbyView
+            playerName={playerName}
+            setPlayerName={setPlayerName}
+            inputRoomId={inputRoomId}
+            setInputRoomId={setInputRoomId}
+            createRoom={createRoom}
+            joinRoom={joinRoom}
+            joinAsSpectator={joinAsSpectator}
+          />
         ) : (
-          <motion.div
-            key="game"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-4xl"
-          >
-            <div className="flex flex-col md:flex-row gap-8">
-              <div className="flex-1 space-y-6">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-semibold">
-                    Room ID: <span className="text-indigo-600">{roomId}</span>
-                  </h2>
-                  {isSpectator ? (
-                    <h3 className="text-lg font-medium text-yellow-600">Spectator Mode</h3>
-                  ) : (
-                    <>
-                      <h3 className="text-lg">
-                        Player:{" "}
-                        <span className="font-medium text-green-600">
-                          {playerName} ({player})
-                        </span>
-                      </h3>
-                      <h3 className="text-lg">
-                        Opponent:
-                        {opponentName ? (
-                          <span className="font-medium text-red-600">{opponentName}</span>
-                        ) : (
-                          <span className="text-yellow-600 animate-pulse">Waiting for opponent...</span>
-                        )}
-                      </h3>
-                    </>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  {squares.map((square, index) => (
-                    <motion.button
-                      key={index}
-                      whileHover={{ scale: isSpectator ? 1 : 1.05 }}
-                      whileTap={{ scale: isSpectator ? 1 : 0.95 }}
-                      className={`w-20 h-20 text-4xl font-bold rounded-lg flex items-center justify-center transition duration-300 ease-in-out
-                        ${
-                          square === "X"
-                            ? "bg-indigo-500 text-white"
-                            : square === "O"
-                            ? "bg-purple-500 text-white"
-                            : "bg-gray-200 hover:bg-gray-300"
-                        }`}
-                      onClick={() => !isSpectator && handleClick(index)}
-                      disabled={isSpectator || disabledSquares[index] || gameOver}
-                    >
-                      {square && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        >
-                          {square}
-                        </motion.span>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-
-                {gameOver && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 text-center space-y-4"
-                  >
-                    {winner ? (
-                      <h2 className="text-3xl font-bold text-indigo-600">Winner: {winner}</h2>
-                    ) : tie ? (
-                      <h2 className="text-3xl font-bold text-yellow-600">It's a Tie!</h2>
-                    ) : null}
-                    <button
-                      className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                      onClick={restartGame}
-                    >
-                      Play Again
-                    </button>
-                  </motion.div>
-                )}
-
-                <button
-                  onClick={leaveRoom}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                >
-                  Leave Room
-                </button>
-              </div>
-
-              <div className="flex-1 space-y-4">
-                <div
-                  ref={chatContainerRef}
-                  className="bg-gray-100 p-4 rounded-lg h-80 overflow-y-auto space-y-2"
-                >
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`p-2 rounded-lg ${
-                        msg.playerName === playerName ? "bg-blue-200 text-right" : "bg-green-200"
-                      }`}
-                    >
-                      <span className="font-bold">{msg.playerName}: </span>
-                      {msg.message}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    className="flex-grow p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          <GameView
+            isSpectator={isSpectator}
+            roomId={roomId}
+            playerName={playerName}
+            player={player}
+            opponentName={opponentName}
+            squares={squares}
+            disabledSquares={disabledSquares}
+            gameOver={gameOver}
+            handleClick={handleClick}
+            winner={winner}
+            tie={tie}
+            restartGame={restartGame}
+            leaveRoom={leaveRoom}
+            messages={messages}
+            inputMessage={inputMessage}
+            setInputMessage={setInputMessage}
+            sendMessage={sendMessage}
+            chatContainerRef={chatContainerRef}
+          />
         )}
       </AnimatePresence>
     </div>
   )
 }
+
+const LobbyView = ({
+  playerName,
+  setPlayerName,
+  inputRoomId,
+  setInputRoomId,
+  createRoom,
+  joinRoom,
+  joinAsSpectator,
+}) => (
+  <motion.div
+    key="lobby"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    className="bg-white p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-md"
+  >
+    <input
+      className="w-full p-3 border-2 border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+      type="text"
+      placeholder="Enter your name"
+      value={playerName}
+      onChange={(e) => setPlayerName(e.target.value)}
+    />
+    <button
+      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+      onClick={createRoom}
+    >
+      Create Room
+    </button>
+    <div className="flex space-x-4">
+      <input
+        className="flex-grow p-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+        type="text"
+        placeholder="Enter room ID"
+        value={inputRoomId}
+        onChange={(e) => setInputRoomId(e.target.value)}
+      />
+      <button
+        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+        onClick={joinRoom}
+      >
+        Join
+      </button>
+    </div>
+    <button
+      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
+      onClick={joinAsSpectator}
+    >
+      Spectate
+    </button>
+  </motion.div>
+)
+
+const GameView = ({
+  isSpectator,
+  roomId,
+  playerName,
+  player,
+  opponentName,
+  squares,
+  disabledSquares,
+  gameOver,
+  handleClick,
+  winner,
+  tie,
+  restartGame,
+  leaveRoom,
+  messages,
+  inputMessage,
+  setInputMessage,
+  sendMessage,
+  chatContainerRef,
+}) => (
+  <motion.div
+    key="game"
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.9 }}
+    className="bg-white p-4 sm:p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-6xl"
+  >
+    <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex-1 space-y-6">
+        <GameInfo
+          isSpectator={isSpectator}
+          roomId={roomId}
+          playerName={playerName}
+          player={player}
+          opponentName={opponentName}
+        />
+        <GameBoard
+          squares={squares}
+          disabledSquares={disabledSquares}
+          gameOver={gameOver}
+          handleClick={handleClick}
+          isSpectator={isSpectator}
+        />
+        <GameStatus gameOver={gameOver} winner={winner} tie={tie} restartGame={restartGame} />
+        <button
+          onClick={leaveRoom}
+          className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+        >
+          Leave Room
+        </button>
+      </div>
+      <ChatArea
+        messages={messages}
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        sendMessage={sendMessage}
+        chatContainerRef={chatContainerRef}
+        playerName={playerName}
+      />
+    </div>
+  </motion.div>
+)
+
+const GameInfo = ({ isSpectator, roomId, playerName, player, opponentName }) => (
+  <div className="text-center space-y-2">
+    <h2 className="text-2xl font-semibold">
+      Room ID: <span className="text-indigo-600">{roomId}</span>
+    </h2>
+    {isSpectator ? (
+      <h3 className="text-lg font-medium text-yellow-600">Spectator Mode</h3>
+    ) : (
+      <>
+        <h3 className="text-lg">
+          Player:{" "}
+          <span className="font-medium text-green-600">
+            {playerName} ({player})
+          </span>
+        </h3>
+        <h3 className="text-lg">
+          Opponent:
+          {opponentName ? (
+            <span className="font-medium text-red-600">{opponentName}</span>
+          ) : (
+            <span className="text-yellow-600 animate-pulse">Waiting for opponent...</span>
+          )}
+        </h3>
+      </>
+    )}
+  </div>
+)
+
+const GameBoard = ({ squares, disabledSquares, gameOver, handleClick, isSpectator }) => (
+  <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-[300px] sm:max-w-[350px] mx-auto">
+    {squares.map((square, index) => (
+      <motion.button
+        key={index}
+        whileHover={{ scale: isSpectator ? 1 : 1.05 }}
+        whileTap={{ scale: isSpectator ? 1 : 0.95 }}
+        className={`aspect-square text-4xl font-bold rounded-lg flex items-center justify-center transition duration-300 ease-in-out
+          ${
+            square === "X"
+              ? "bg-indigo-500 text-white"
+              : square === "O"
+                ? "bg-purple-500 text-white"
+                : "bg-gray-200 hover:bg-gray-300"
+          }`}
+        onClick={() => !isSpectator && handleClick(index)}
+        disabled={isSpectator || disabledSquares[index] || gameOver}
+      >
+        {square && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
+            {square === "X" ? <XIcon className="w-12 h-12" /> : <OIcon className="w-12 h-12" />}
+          </motion.div>
+        )}
+      </motion.button>
+    ))}
+  </div>
+)
+
+const GameStatus = ({ gameOver, winner, tie, restartGame }) =>
+  gameOver && (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6 text-center space-y-4">
+      {winner ? (
+        <h2 className="text-3xl font-bold text-indigo-600">Winner: {winner}</h2>
+      ) : tie ? (
+        <h2 className="text-3xl font-bold text-yellow-600">It's a Tie!</h2>
+      ) : null}
+      <button
+        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+        onClick={restartGame}
+      >
+        Play Again
+      </button>
+    </motion.div>
+  )
+
+const ChatArea = ({ messages, inputMessage, setInputMessage, sendMessage, chatContainerRef, playerName }) => (
+  <div className="flex-1 space-y-4 min-w-[250px]">
+    <div ref={chatContainerRef} className="bg-gray-100 p-4 rounded-lg h-[400px] overflow-y-auto space-y-2">
+      {messages.map((msg, index) => (
+        <div
+          key={index}
+          className={`p-2 rounded-lg ${msg.playerName === playerName ? "bg-blue-200 text-right" : "bg-green-200"}`}
+        >
+          <span className="font-bold">{msg.playerName}: </span>
+          {msg.message}
+        </div>
+      ))}
+    </div>
+    <div className="flex space-x-2">
+      <input
+        type="text"
+        value={inputMessage}
+        onChange={(e) => setInputMessage(e.target.value)}
+        placeholder="Type your message..."
+        className="flex-grow p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+      />
+      <button
+        onClick={sendMessage}
+        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+)
 
 export default TicTacToe
 
