@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -16,6 +16,10 @@ const TicTacToe = () => {
   const [tie, setTie] = useState(false)
   const [inputRoomId, setInputRoomId] = useState("")
   const [disabledSquares, setDisabledSquares] = useState(Array(9).fill(false))
+  const [isSpectator, setIsSpectator] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [inputMessage, setInputMessage] = useState("")
+  const chatContainerRef = useRef(null)
 
   const speak = (message) => {
     const msg = new SpeechSynthesisUtterance(message)
@@ -45,7 +49,7 @@ const TicTacToe = () => {
   const createRoom = async () => {
     if (!playerName) return alert("Please enter your name first")
     try {
-      const response = await axios.post("http://localhost:3000/api/create-room", {
+      const response = await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/create-room", {
         playerName,
       })
       const { roomId } = response.data
@@ -58,19 +62,68 @@ const TicTacToe = () => {
     }
   }
 
+  const leaveRoom = async () => {
+    try {
+      await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/leave-room", { roomId, player })
+      resetGameState()
+      speak("You have left the room")
+    } catch (error) {
+      console.error("Error leaving room:", error)
+      alert("Failed to leave room")
+    }
+  }
+
+  const resetGameState = () => {
+    setRoomId("")
+    setPlayer(null)
+    setSquares(Array(9).fill(null))
+    setXIsNext(true)
+    setGameOver(false)
+    setWinner(null)
+    setTie(false)
+    setDisabledSquares(Array(9).fill(false))
+    setIsSpectator(false)
+    setMessages([])
+    setOpponentName(null)
+  }
+
   const joinRoom = async () => {
     if (!inputRoomId || !playerName) return alert("Enter room ID and your name")
     try {
-      const response = await axios.post("http://localhost:3000/api/join-room", {
+      const response = await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/join-room", {
         roomId: inputRoomId.toUpperCase(),
         playerName,
       })
+      if (response.data.error) {
+        alert(response.data.error)
+        return
+      }
       setRoomId(inputRoomId.toUpperCase())
       setPlayer("O")
       speak(`Joined room ${inputRoomId}. Your player is O`)
     } catch (error) {
       console.error("Error joining room:", error)
-      alert("Room not found!")
+      alert("Failed to join room. Please try again.")
+    }
+  }
+
+  const joinAsSpectator = async () => {
+    if (!inputRoomId) return alert("Enter room ID")
+    try {
+      const response = await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/join-room", {
+        roomId: inputRoomId.toUpperCase(),
+        isSpectator: true,
+      })
+      if (response.data.error) {
+        alert(response.data.error)
+        return
+      }
+      setRoomId(inputRoomId.toUpperCase())
+      setIsSpectator(true)
+      speak(`Joined room ${inputRoomId} as a spectator`)
+    } catch (error) {
+      console.error("Error joining room as spectator:", error)
+      alert("Failed to join room as spectator. Please try again.")
     }
   }
 
@@ -102,7 +155,7 @@ const TicTacToe = () => {
     })
 
     try {
-      await axios.post("http://localhost:3000/api/update-room", {
+      await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/update-room", {
         roomId,
         squares: newSquares,
         xIsNext: !xIsNext,
@@ -120,7 +173,7 @@ const TicTacToe = () => {
 
   const restartGame = async () => {
     try {
-      await axios.post("http://localhost:3000/api/restart-room", { roomId })
+      await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/restart-room", { roomId })
       setSquares(Array(9).fill(null))
       setXIsNext(true)
       setGameOver(false)
@@ -134,12 +187,27 @@ const TicTacToe = () => {
     }
   }
 
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return
+    try {
+      await axios.post("https://tic-tac-toe-backend-eta.vercel.app/api/send-message", {
+        roomId,
+        playerName: isSpectator ? "Spectator" : playerName,
+        message: inputMessage,
+      })
+      setInputMessage("")
+    } catch (error) {
+      console.error("Error sending message:", error)
+      alert("Failed to send message")
+    }
+  }
+
   useEffect(() => {
     let intervalId
     if (roomId) {
       const fetchRoomState = async () => {
         try {
-          const response = await axios.get(`http://localhost:3000/api/room/${roomId}`)
+          const response = await axios.get(`https://tic-tac-toe-backend-eta.vercel.app/api/room/${roomId}`)
           const roomData = response.data
           setSquares(roomData.squares)
           setXIsNext(roomData.xIsNext)
@@ -147,6 +215,7 @@ const TicTacToe = () => {
           setTie(roomData.tie)
           setGameOver(Boolean(roomData.winnerName || roomData.tie))
           setOpponentName(roomData[player === "X" ? "O_name" : "X_name"] || "Opponent")
+          setMessages(roomData.messages || [])
         } catch (error) {
           console.error("Error fetching room data:", error)
         }
@@ -158,6 +227,12 @@ const TicTacToe = () => {
       if (intervalId) clearInterval(intervalId)
     }
   }, [roomId, player])
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [chatContainerRef])
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
@@ -202,6 +277,12 @@ const TicTacToe = () => {
                 Join
               </button>
             </div>
+            <button
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
+              onClick={joinAsSpectator}
+            >
+              Spectate
+            </button>
           </motion.div>
         ) : (
           <motion.div
@@ -209,77 +290,129 @@ const TicTacToe = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-md"
+            className="bg-white p-8 rounded-xl shadow-2xl space-y-6 w-full max-w-4xl"
           >
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-semibold">
-                Room ID: <span className="text-indigo-600">{roomId}</span>
-              </h2>
-              <h3 className="text-lg">
-                Player:{" "}
-                <span className="font-medium text-green-600">
-                  {playerName} ({player})
-                </span>
-              </h3>
-              <h3 className="text-lg">
-                Opponent:
-                {opponentName ? (
-                  <span className="font-medium text-red-600">{opponentName}</span>
-                ) : (
-                  <span className="text-yellow-600 animate-pulse">Waiting for opponent...</span>
-                )}
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {squares.map((square, index) => (
-                <motion.button
-                  key={index}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`w-20 h-20 text-4xl font-bold rounded-lg flex items-center justify-center transition duration-300 ease-in-out
-                    ${
-                      square === "X"
-                        ? "bg-indigo-500 text-white"
-                        : square === "O"
-                          ? "bg-purple-500 text-white"
-                          : "bg-gray-200 hover:bg-gray-300"
-                    }`}
-                  onClick={() => handleClick(index)}
-                  disabled={disabledSquares[index] || gameOver}
-                >
-                  {square && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    >
-                      {square}
-                    </motion.span>
+            <div className="flex flex-col md:flex-row gap-8">
+              <div className="flex-1 space-y-6">
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-semibold">
+                    Room ID: <span className="text-indigo-600">{roomId}</span>
+                  </h2>
+                  {isSpectator ? (
+                    <h3 className="text-lg font-medium text-yellow-600">Spectator Mode</h3>
+                  ) : (
+                    <>
+                      <h3 className="text-lg">
+                        Player:{" "}
+                        <span className="font-medium text-green-600">
+                          {playerName} ({player})
+                        </span>
+                      </h3>
+                      <h3 className="text-lg">
+                        Opponent:
+                        {opponentName ? (
+                          <span className="font-medium text-red-600">{opponentName}</span>
+                        ) : (
+                          <span className="text-yellow-600 animate-pulse">Waiting for opponent...</span>
+                        )}
+                      </h3>
+                    </>
                   )}
-                </motion.button>
-              ))}
-            </div>
+                </div>
 
-            {gameOver && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 text-center space-y-4"
-              >
-                {winner ? (
-                  <h2 className="text-3xl font-bold text-indigo-600">Winner: {winner}</h2>
-                ) : tie ? (
-                  <h2 className="text-3xl font-bold text-yellow-600">It's a Tie!</h2>
-                ) : null}
+                <div className="grid grid-cols-3 gap-4">
+                  {squares.map((square, index) => (
+                    <motion.button
+                      key={index}
+                      whileHover={{ scale: isSpectator ? 1 : 1.05 }}
+                      whileTap={{ scale: isSpectator ? 1 : 0.95 }}
+                      className={`w-20 h-20 text-4xl font-bold rounded-lg flex items-center justify-center transition duration-300 ease-in-out
+                        ${
+                          square === "X"
+                            ? "bg-indigo-500 text-white"
+                            : square === "O"
+                            ? "bg-purple-500 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      onClick={() => !isSpectator && handleClick(index)}
+                      disabled={isSpectator || disabledSquares[index] || gameOver}
+                    >
+                      {square && (
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                          {square}
+                        </motion.span>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+
+                {gameOver && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 text-center space-y-4"
+                  >
+                    {winner ? (
+                      <h2 className="text-3xl font-bold text-indigo-600">Winner: {winner}</h2>
+                    ) : tie ? (
+                      <h2 className="text-3xl font-bold text-yellow-600">It's a Tie!</h2>
+                    ) : null}
+                    <button
+                      className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                      onClick={restartGame}
+                    >
+                      Play Again
+                    </button>
+                  </motion.div>
+                )}
+
                 <button
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                  onClick={restartGame}
+                  onClick={leaveRoom}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
                 >
-                  Play Again
+                  Leave Room
                 </button>
-              </motion.div>
-            )}
+              </div>
+
+              <div className="flex-1 space-y-4">
+                <div
+                  ref={chatContainerRef}
+                  className="bg-gray-100 p-4 rounded-lg h-80 overflow-y-auto space-y-2"
+                >
+                  {messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`p-2 rounded-lg ${
+                        msg.playerName === playerName ? "bg-blue-200 text-right" : "bg-green-200"
+                      }`}
+                    >
+                      <span className="font-bold">{msg.playerName}: </span>
+                      {msg.message}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className="flex-grow p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
